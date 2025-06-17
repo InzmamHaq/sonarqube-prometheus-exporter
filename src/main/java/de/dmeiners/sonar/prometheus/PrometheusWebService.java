@@ -39,6 +39,11 @@ public class PrometheusWebService implements WebService {
         SUPPORTED_METRICS.add(CoreMetrics.CODE_SMELLS);
         SUPPORTED_METRICS.add(CoreMetrics.COVERAGE);
         SUPPORTED_METRICS.add(CoreMetrics.TECHNICAL_DEBT);
+        SUPPORTED_METRICS.add(CoreMetrics.LINE_COVERAGE);
+        SUPPORTED_METRICS.add(CoreMetrics.BRANCH_COVERAGE);
+        SUPPORTED_METRICS.add(CoreMetrics.SECURITY_HOTSPOTS);
+
+
     }
 
     public PrometheusWebService(Configuration configuration) {
@@ -74,7 +79,7 @@ public class PrometheusWebService implements WebService {
 
                             if (this.gauges.containsKey(measure.getMetric())) {
 
-                                this.gauges.get(measure.getMetric()).labels(project.getKey(), project.getName()).set(Double.valueOf(measure.getValue()));
+                                this.gauges.get(measure.getMetric()).labels(project.getKey(), project.getName()).set(Double.parseDouble(measure.getValue()));
                             }
                         });
                     });
@@ -129,11 +134,41 @@ public class PrometheusWebService implements WebService {
             .setMetricKeys(metricKeys));
     }
 
-    private List<Components.Component> getProjects(WsClient wsClient) {
+    /*private List<Components.Component> getProjects(WsClient wsClient) {
 
         return wsClient.components().search(new SearchRequest()
             .setQualifiers(Collections.singletonList(Qualifiers.PROJECT))
             .setPs("500"))
             .getComponentsList();
+    }*/
+
+    private List<Components.Component> getProjects(WsClient wsClient) {
+        List<Components.Component> allProjects = new ArrayList<>();
+        int pageSize = 500;
+        int pageIndex = 1;
+
+        while (true) {
+            Components.SearchWsResponse response = wsClient.components().search(
+                    new SearchRequest()
+                            .setQualifiers(Collections.singletonList(Qualifiers.PROJECT))
+                            .setPs(String.valueOf(pageSize))
+                            .setP(String.valueOf(pageIndex))
+            );
+
+            List<Components.Component> currentPageProjects = response.getComponentsList();
+            if (currentPageProjects.isEmpty()) {
+                break;
+            }
+
+            allProjects.addAll(currentPageProjects);
+
+            if (currentPageProjects.size() < pageSize) {
+                break;
+            }
+
+            pageIndex++;
+        }
+
+        return allProjects;
     }
 }
